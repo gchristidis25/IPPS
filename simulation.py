@@ -1,5 +1,61 @@
-import server
-import peer
+from server import Server
+from peer import Peer
+from pathlib import Path
+import threading
 
-def begin_simulation():
-    pass
+def get_names() -> "generator":
+    """Creates a generator that yields names from `random_names.txt` file
+    
+    Yields:
+        (str): a name from the `random_names.txt` file
+    
+    """
+    filepath: Path = Path(__file__).parent.joinpath("random_names.txt")
+    with open(filepath, "r") as file:
+        names: list[str] = file.readlines()
+        for name in names:
+            name = name.strip()
+            yield name
+
+def initialize_peers(max_peers: int, max_rounds: int) -> list[Peer]:
+    """Initiates peers and activates their serving module
+    
+    Sets the initial positional of peers along the diagonal of the area
+    Sets their ports from 61001 and onwards
+
+    Args:
+        max_peers (int): the maximum number of peers that will appear in the simulation
+        max_rounds (int): the maximum rounds the simulation will run
+
+    Returns:
+        (list[Peer]): the list of initiated peers
+    """
+    random_names_generator: "generator" = get_names()
+    peers = []
+    for i in range(max_peers):
+        peer = Peer(next(random_names_generator), (i+1, i+1), 61001 + i, max_rounds)
+        threading.Thread(target=peer.serve, args=()).start()
+        peers.append(peer)
+
+    return peers
+
+
+def start_simulation(area_size: int, max_peers: int, max_rounds: int):
+    """Initiates the server and broadcasts the start of the simulation to all peers
+    
+    Args:
+        area_size (int): the length (in units) of the side of the simulation area 
+        max_peers (int): the maximum number of peers that will appear in the simulation
+        max_rounds (int): the maximum rounds the simulation will run
+        
+    """
+    server = Server("127.0.0.1", 60000, area_size, max_peers, max_rounds)
+    threading.Thread(target=server.serve, args=()).start()
+    peers = initialize_peers(MAX_PEERS, MAX_CYCLES)
+    server.start(peers)
+
+if __name__ == "__main__":
+    AREA_SIZE = 10
+    MAX_PEERS = 10
+    MAX_CYCLES = 20
+    start_simulation(AREA_SIZE, MAX_PEERS, MAX_CYCLES)
