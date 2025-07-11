@@ -6,7 +6,7 @@ class Message:
     Attributes:
         data (dict): the dictionary with all the message features
             - title (str): the title of the message
-            - cycle (int): the current cycle the peer is
+            - round (int): the current round the peer is
             - name (int): the name of the peer
             - source_address (tuple[str, int]): the address the peer actively listens to
             - content (str): the rest of the message's content
@@ -20,7 +20,7 @@ class Message:
         payload: dict = json.loads(js)
         message: Message = cls(
             title=payload["TITLE"],
-            cycle=payload["CYCLE"],
+            round=payload["ROUND"],
             name=payload["NAME"],
             source_address=tuple(payload["SOURCE_ADDRESS"]),
             content=payload["CONTENT"]
@@ -31,14 +31,14 @@ class Message:
     def __init__(
             self,
             title: str,
-            cycle: int,
+            round: int,
             name: str,
             source_address: tuple[str, int],
             content: str
             ):
         self.data = {
             "TITLE": title,
-            "CYCLE": cycle,
+            "ROUND": round,
             "NAME": name,
             "SOURCE_ADDRESS": source_address,
             "CONTENT": content
@@ -48,9 +48,9 @@ class Message:
         """Returns the message's title attribute"""
         return self.data["TITLE"]
     
-    def get_cycle(self) -> int:
-        """Returns the message's cycle attribute"""
-        return self.data["CYCLE"]
+    def get_round(self) -> int:
+        """Returns the message's round attribute"""
+        return self.data["ROUND"]
     
     def get_name(self) -> str:
         """Returns the message's name attribute"""
