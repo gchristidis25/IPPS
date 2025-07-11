@@ -19,11 +19,12 @@ class Peer:
         next_pos (tuple[int, int]): the position the peer chose to move next
     
     """
-    def __init__(self, name: str, pos: tuple[int, int], server_port: int, END_ROUND):
+    def __init__(self, name: str, pos: tuple[int, int], server_port: int, END_ROUND, server_address):
         self.logger = log.create_logger()
         self.name: str = name
         self.pos: tuple[int, int] = pos
         self.SOURCE_ADDRESS: tuple[str, int] = ("127.0.0.1", server_port)
+        self.SERVER_ADDRESS: tuple[str, int] = server_address
         self.round: int = 0
         self.END_ROUND: int = END_ROUND
         self.DIRECTIONS: list[str] = ["up", "down", "left", "right"]
@@ -48,11 +49,32 @@ class Peer:
         if self.round < self.END_ROUND:
             self.logger.info("Position: (%s, %s)", self.pos[0], self.pos[1], extra={"peer_name": self.name, "round": self.round})
 
+    def start(self):
+        """Enables the basic behavior of the peer
+        
+        The peer serves throughout the simulation
+
+        At the start of a new round the peer moves to a random location or stays
+        at the same if there are no valid moves
+
+        """
+        threading.Thread(target=self.serve, args=()).start()
+
+        current_round: int = self.round
+        while True:
+            if current_round < self.round:
+                self.remain_idle(2)
+                move_thread: threading.Thread = threading.Thread(target=self.select_move, args=())
+                move_thread.start()
+                move_thread.join()
+
+                current_round = self.round
+
     def remain_idle(self, seconds: int):
         """Simulates action pauses"""
         import time
         import random
-        time.sleep(random.random(seconds) + 1) 
+        time.sleep(random.randint(1, seconds)) 
 
     def create_message(self, title: str, content="") -> Message:
         message = Message(
@@ -85,13 +107,12 @@ class Peer:
                 break
 
             message: Message = Message.decode(data)
-            threading.Thread(target=self.handle_message, args=(message,)).start()
-                
+            threading.Thread(target=self.handle_message, args=(message,)).start()        
 
     def handle_message(self, message: Message):
         """Checks the title of the message and takes the appropriate action
         
-        - PASR (PASs Round): Increment round by one and take next move action
+        - PASR (PASs Round): Increment round by one
         - OKMV (OK MoVe): The current move is legal. Proceed in changing the pos
         - DNMV (DeNy MoVe): The current move is illegal. Proceed to the next available
         move or declare to server that you will take no other move this round
@@ -100,18 +121,17 @@ class Peer:
         peer_name = message.get_name()
         self.log(f"Received {title} message from {peer_name}")
         destination_address = message.get_source_address()
+
         if title == "PASR":
             self.round += 1
             self.log_pos()
-            threading.Thread(target=self.select_move, args=(destination_address, peer_name, )).start()
         elif title == "OKMV":
             self.pos = self.next_pos
             self.next_pos = None
         elif title == "DNMV":
-            threading.Thread(target=self.select_move, args=(destination_address, peer_name, )).start()
-            
+            threading.Thread(target=self.select_move, args=()).start()
         
-    def select_move(self, destination_address, recipient):
+    def select_move(self):
         """Selects a random combination of moves each round and tries to execute the first of them
 
         If the move is illegal, it goes to the next available move.
@@ -135,11 +155,11 @@ class Peer:
 
             self.log(f"Request to move to {self.next_pos}")
             request_move_message = self.create_message("RQMV", f"{self.pos}|{self.next_pos}")
-            threading.Thread(target=self.connect, args=(destination_address, recipient, request_move_message, )).start()
+            threading.Thread(target=self.connect, args=(self.SERVER_ADDRESS, "Server", request_move_message, )).start()
         else:
             self.next_pos = None
             finished_move_message = self.create_message("FNMV")
-            threading.Thread(target=self.connect, args=(destination_address, recipient, finished_move_message)).start()
+            threading.Thread(target=self.connect, args=(self.SERVER_ADDRESS, "Server", finished_move_message)).start()
 
     def connect(self, destination: tuple[str, int], recipient: str, message: Message):
         """Connect to the specific destination peer and deliver it a message
@@ -166,3 +186,4 @@ class Peer:
 if __name__ == "__main__":
     import random
     import time
+    peer = Peer("sf", (1, 2), 65433, 5)
