@@ -191,11 +191,16 @@ class Server:
         self.log(f"Closed connection with {peer_name}")
 
     def start(self, peers: list["Peer"]):
-        """Updates the peers_addresses with all the peers and starts a broadcast"""
+        """Updates the peers positions, addresses and starts a broadcast"""
         for peer in peers:
+
             peer_name = peer.get_name()
             peer_address = peer.get_source_address()
             self.update_peers_addresses(peer_name, peer_address)
+
+            peer_pos = peer.get_pos()
+            self.area[peer_pos[0]][peer_pos[1]] = peer_name
+
         message = self.create_message("PASR")
         self.broadcast(message)
 
