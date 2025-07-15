@@ -17,9 +17,10 @@ class Peer:
         random_directions (list[str]): the subsets of possible directions the peer
         chose to make in a given round
         next_pos (tuple[int, int]): the position the peer chose to move next
+        RADIO_RANGE (int): the WiFi range 
     
     """
-    def __init__(self, name: str, pos: tuple[int, int], server_port: int, END_ROUND, server_address):
+    def __init__(self, name: str, pos: tuple[int, int], server_port: int, END_ROUND, server_address, radio_range):
         self.logger = log.create_logger()
         self.name: str = name
         self.pos: tuple[int, int] = pos
@@ -30,10 +31,16 @@ class Peer:
         self.DIRECTIONS: list[str] = ["up", "down", "left", "right"]
         self.random_directions: list[str] = []
         self.next_pos: tuple[int, int] = None
+        self.RADIO_RANGE: int = radio_range
+        self.peers_in_vicinity = []
 
     def get_name(self):
         """Returns the peer's name attribute"""
         return self.name
+    
+    def get_pos(self):
+        """Returns the peer's current position"""
+        return self.pos
     
     def get_source_address(self):
         """Returns the peers's SOURCE_ADDRESS attribute"""
@@ -55,7 +62,8 @@ class Peer:
         The peer serves throughout the simulation
 
         At the start of a new round the peer moves to a random location or stays
-        at the same if there are no valid moves
+        at the same if there are no valid moves. It then scans for peers in its
+        vicinity
 
         """
         threading.Thread(target=self.serve, args=()).start()
@@ -63,13 +71,23 @@ class Peer:
         current_round: int = self.round
         while True:
             if current_round < self.round:
-                self.remain_idle(2)
+                # self.remain_idle(2)
                 move_thread: threading.Thread = threading.Thread(target=self.select_move, args=())
+                scan_thread = threading.Thread(target=self.scan_peers, args=())
                 move_thread.start()
                 move_thread.join()
+                # self.remain_idle(3)
+                scan_thread.start()
+                scan_thread.join()
 
                 current_round = self.round
 
+    def scan_peers(self):
+        """Asks the server which servers are within radio range"""
+        scan_message = self.create_message("SCAN", f"{self.pos}|{self.RADIO_RANGE}")
+        self.log("Scanning for peers")
+        self.connect(self.SERVER_ADDRESS, "Server", scan_message)
+        
     def remain_idle(self, seconds: int):
         """Simulates action pauses"""
         import time
@@ -116,11 +134,13 @@ class Peer:
         - OKMV (OK MoVe): The current move is legal. Proceed in changing the pos
         - DNMV (DeNy MoVe): The current move is illegal. Proceed to the next available
         move or declare to server that you will take no other move this round
+        - PWIR (Peers WIthin Range): Shows which peers are withing radio range
         """
         title = message.get_title()
         peer_name = message.get_name()
         self.log(f"Received {title} message from {peer_name}")
         destination_address = message.get_source_address()
+        content = message.get_content()
 
         if title == "PASR":
             self.round += 1
@@ -130,6 +150,10 @@ class Peer:
             self.next_pos = None
         elif title == "DNMV":
             threading.Thread(target=self.select_move, args=()).start()
+        elif title == "PWIR":
+            self.peers_in_vicinity = content
+            peers = list(map(lambda t: t[0], self.peers_in_vicinity))
+            self.log(f"Found: {peers} and thats it")
         
     def select_move(self):
         """Selects a random combination of moves each round and tries to execute the first of them
@@ -172,7 +196,7 @@ class Peer:
         """
         peer_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         peer_socket.connect(destination)
-        self.log(f"Open connection with {recipient}")
+        # self.log(f"Open connection with {recipient}")
         threading.Thread(target=self.send, args=(peer_socket, recipient, message, )).start()
 
     def send(self, peer_socket: socket.socket, recipient: str, message: Message):
@@ -180,7 +204,7 @@ class Peer:
         peer_socket.send(encoded_message)
         self.log(f"Send {message.get_title()} message to {recipient}")
         peer_socket.close()
-        self.log(f"Closed connection with {recipient}")
+        # self.log(f"Closed connection with {recipient}")
 
 
 if __name__ == "__main__":

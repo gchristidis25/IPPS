@@ -90,6 +90,7 @@ class Server:
         
         - RQMV (ReQuest MoVe): Peer is requesting to move to a new pos.
         - FNMV (Finish MoVe): Peer is signaling that has finished moving for the round
+        - SCAN (SCAN peers): Peer is requesting which peers are withing its radio range
        
         """
         title = message.get_title()
@@ -97,17 +98,67 @@ class Server:
         self.log(f"Received {title} message from {peer_name}")
         round = message.get_round()
         destination = message.get_source_address()
+        content = message.get_content()
 
         if round > self.round:
             self.log_important(f"{peer_name} IS AHEAD IN TIME CYCLES")
         
         if title == "RQMV":
-            current_pos_str, new_pos_str = message.get_content().split("|")
+            current_pos_str, new_pos_str = content.split("|")
             current_pos = utils.string_to_tuple(current_pos_str)
             new_pos = utils.string_to_tuple(new_pos_str)
             threading.Thread(target=self.change_pos, args=(peer_name, current_pos, new_pos, destination, )).start()
         elif title == "FNMV":
             self.store(peer_name)
+        elif title == "SCAN":
+            peer_pos_str, radio_range_str = content.split("|")
+            peer_pos = utils.string_to_tuple(peer_pos_str)
+            radio_range = int(radio_range_str)
+
+            peers_in_vicinity = self.find_peers(peer_pos, radio_range)
+            peers_in_vicinity_message = self.create_message("PWIR", peers_in_vicinity)
+            threading.Thread(target=self.connect, args=(
+                peer_name,
+                peers_in_vicinity_message,
+                destination,
+                )
+            ).start()
+    
+    def find_peers(self, peer_pos: tuple[str, int], radio_range: int):
+        """Finds the peers that are withing range of the requesting peer"""
+        peers_in_vicinity: list[tuple[str, tuple[str, int]]] = []
+        x_cardinals = [peer_pos[0]]
+        y_cardinals = [peer_pos[1]]
+
+        for r in range(1, radio_range + 1):
+            right = peer_pos[0] + r
+            if right in range(self.SIZE):
+                x_cardinals.append(right)
+            
+            left = peer_pos[0] - r
+            if left in range(self.SIZE):
+                x_cardinals.append(left)
+            
+            down = peer_pos[1] + r
+            if down in range(self.SIZE):
+                y_cardinals.append(down)
+            
+            up = peer_pos[1] - r
+            if up in range(self.SIZE):
+                y_cardinals.append(up)
+
+        for x in x_cardinals:
+            for y in y_cardinals:
+                if self.area[x][y] != "#" and not (x == peer_pos[0] and y == peer_pos[1]):
+                    with self.lock:
+                        peer_name = self.area[x][y]
+                    
+                    self.log(f"Found {peer_name} at {x},{y}")
+
+                    peer_address = self.peers_addresses[peer_name]
+                    peers_in_vicinity.append((peer_name, peer_address))
+
+        return peers_in_vicinity
 
     def change_pos(
             self,
@@ -179,7 +230,7 @@ class Server:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         client_socket.connect(destination)
-        self.log(f"Opened connection with {peer_name}")
+        # self.log(f"Opened connection with {peer_name}")
         threading.Thread(target=self.send, args=(peer_name, client_socket, message, )).start()
 
     def send(self, peer_name, client_socket: socket.socket, message: Message):
@@ -206,5 +257,19 @@ class Server:
 
 
 if __name__ == "__main__":
-    server = Server("127.0.0.1", 65432, 4, 3)
-    server.handle_message(Message("RQMV", 0, "Olivia", "safd", "[1, 2]|[3, 4]"))
+    server = Server(65432, 3, 2, 5)
+    server.peers_addresses = {
+        "A": 1,
+        "B": 2,
+        "C": 3,
+        "D": 4,
+        "E": 5
+    }
+
+    server.area = [
+        ["A", "#", "E"],
+        ["#", "B", "#"],
+        ["C", "D", "E"]
+    ]
+
+    print(server.find_peers((0, 0), 2))
