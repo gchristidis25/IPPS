@@ -122,27 +122,32 @@ class Server:
 
         """
         self.log(f"{peer_name} wants to change their position to {new_pos} ")
-        x, y = new_pos
-        with self.lock:
-            if  x not in range(0, self.SIZE) or \
-                y not in range(0, self.SIZE) or \
-                self.area[x][y] != "#":
 
-                message = self.create_message("DNMV")
-                threading.Thread(target=self.connect, args=(peer_name, message, destination, )).start()
-            else:
-                #remove the current_pos
+        valid_move = False
+        x, y = new_pos
+        if x in range(0, self.SIZE) and y in range(0, self.SIZE):
+            with self.lock:
+                if self.area[x][y] == "#":
+                    valid_move = True
+
+        if valid_move:
+            with self.lock:
+                #remove the current_pos 
                 self.area[current_pos[0]][current_pos[1]] = "#"
                 # note the new pos
                 self.area[x][y] = peer_name
-                message = self.create_message("OKMV")
-                accepted_move_thread: threading.Thread = threading.Thread(target=self.connect, args=(peer_name, message, destination, ))
-                accepted_move_thread.start()
-                # Want the `OKMV` message to first reach the target and then start a new
-                # round if able
-                accepted_move_thread.join()
-                self.log(f"Send OKMV message to {peer_name}")
-                self.store(peer_name)
+            
+            message = self.create_message("OKMV")
+            accepted_move_thread: threading.Thread = threading.Thread(target=self.connect, args=(peer_name, message, destination, ))
+            accepted_move_thread.start()
+            # Want the `OKMV` message to first reach the target and then start a new
+            # round if able
+            accepted_move_thread.join()
+            self.log(f"Send OKMV message to {peer_name}")
+            self.store(peer_name)
+        else:
+            message = self.create_message("DNMV")
+            threading.Thread(target=self.connect, args=(peer_name, message, destination, )).start()
 
     def store(self, peer_name: str):
         """Stores the name of peer to the moved_peer list
