@@ -167,15 +167,14 @@ class Server:
             peer_name: str,
             current_pos: tuple[int, int],
             new_pos: tuple[int, int],
-            destination: tuple[str, int]
             ):
-        """Checks to see if the move is legal and send the appropriate message
-        
-        If the move is legal, also store the peer's name to moved_peers
+        """Checks to see if the move is legal. 
+
+        If the move is legal, it updates the area and returns True.
+        Otherwise it returns False
 
         """
         self.log(f"{peer_name} wants to change their position to {new_pos} ")
-
         valid_move = False
         x, y = new_pos
         if x in range(0, self.SIZE) and y in range(0, self.SIZE):
@@ -190,22 +189,7 @@ class Server:
                 # note the new pos
                 self.area[x][y] = peer_name
             
-            message = self.create_message("OKMV")
-            accepted_move_thread: threading.Thread = threading.Thread(target=self.connect, args=(peer_name, message, destination, ))
-            accepted_move_thread.start()
-            # Want the `OKMV` message to first reach the target and then start a new
-            # round if able
-            accepted_move_thread.join()
-            self.log(f"Send OKMV message to {peer_name}")
-            self.store(peer_name)
-        else:
-            message = self.create_message("DNMV")
-            threading.Thread(target=self.connect, args=(peer_name, message, destination, )).start()
-
-    def store(self, peer_name: str):
-        """Stores the name of peer to the moved_peer list
-        
-        If the list reaches its maximum, begin a new cycle
+            return True
         
         return False
 
