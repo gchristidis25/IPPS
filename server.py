@@ -241,7 +241,7 @@ class Server:
         client_socket.close()
         self.log(f"Closed connection with {peer_name}")
 
-    def start(self, peers: list["Peer"]):
+    def bootstrap(self, peers: list["Peer"]):
         """Updates the peers positions, addresses and starts a broadcast"""
         for peer in peers:
 

@@ -38,7 +38,6 @@ def initialize_peers(max_peers: int, max_rounds: int, server_address: tuple[str,
         peer = Peer(next(random_names_generator), (i, i), 61001 + i, max_rounds, server_address, radio_range)
         threading.Thread(target=peer.start, args=()).start()
         peers.append(peer)
-
     return peers
 
 
@@ -55,7 +54,7 @@ def start_simulation(area_size: int, max_peers: int, max_rounds: int, radio_rang
     server = Server(60000, area_size, max_peers, max_rounds)
     threading.Thread(target=server.serve, args=()).start()
     peers = initialize_peers(MAX_PEERS, MAX_CYCLES, server.SERVER_ADDRESS, radio_range)
-    server.start(peers)
+    server.bootstrap(peers)
 
 if __name__ == "__main__":
     AREA_SIZE = 3
