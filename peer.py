@@ -1,6 +1,7 @@
 import socket
 import threading
 import log
+from threadpool import Threadpool
 from message import Message
 
 class Peer:
@@ -21,9 +22,19 @@ class Peer:
         moved (bool): flag that indicates if the peer has moved or not
         peers_in_vicinity (list[str, tuple[int, str]]): the peers and their
         addresses that are withing radio range
+        num_threads (int): the number of working threads in the threadpool
     
     """
-    def __init__(self, name: str, pos: tuple[int, int], server_port: int, END_ROUND, server_address, radio_range):
+    def __init__(
+            self,
+            name: str,
+            pos: tuple[int, int],
+            server_port: int,
+            END_ROUND: int,
+            server_address:tuple[str, int],
+            radio_range: int,
+            num_threads: int
+            ):
         self.logger = log.create_logger()
         self.name: str = name
         self.pos: tuple[int, int] = pos
@@ -37,6 +48,7 @@ class Peer:
         self.RADIO_RANGE: int = radio_range
         self.moved = False
         self.peers_in_vicinity = []
+        self.threadpool = Threadpool(num_threads)
 
     def get_name(self):
         """Returns the peer's name attribute"""
@@ -108,12 +120,12 @@ class Peer:
     def serve(self):
         serve_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         serve_socket.bind(self.SOURCE_ADDRESS)
-        serve_socket.listen(5)
+        serve_socket.listen(3)
         
         while True:
             peer_socket, peer_address = serve_socket.accept()
             # self.log(f"Opened connection with {peer_address}")
-            threading.Thread(target=self.receive, args=(peer_socket, peer_address)).start()
+            self.threadpool.add_task(self.receive, args=(peer_socket, peer_address, ))
 
 
     def receive(self, peer_socket, peer_address):
