@@ -156,10 +156,12 @@ class Peer:
             self.log(f"Found: {peers} and thats it")
         
     def select_move(self):
-        """Selects a random combination of moves each round and tries to execute the first of them
+        """Selects a random combination of moves each round and tries to execute
+        the first of them
 
-        If the move is illegal, it goes to the next available move.
-        If the range of preselected moves is exhausted, then it stays in the same pos
+        Returns:
+            (tuple[int, int]/None): The next pos if a random direction is selected.
+            If the random directions list is exhausted, it returns None
         """
         import random
         if not(self.next_pos):
@@ -177,13 +179,11 @@ class Peer:
             else:
                 self.next_pos = (self.pos[0] + 1, self.pos[1])
 
-            self.log(f"Request to move to {self.next_pos}")
-            request_move_message = self.create_message("RQMV", f"{self.pos}|{self.next_pos}")
-            threading.Thread(target=self.connect, args=(self.SERVER_ADDRESS, "Server", request_move_message, )).start()
         else:
             self.next_pos = None
-            finished_move_message = self.create_message("FNMV")
-            threading.Thread(target=self.connect, args=(self.SERVER_ADDRESS, "Server", finished_move_message)).start()
+            self.log(f"Request to move to {self.next_pos}")
+
+        return self.next_pos
 
     def connect(self, destination: tuple[str, int], recipient: str, message: Message):
         """Connect to the specific destination peer and deliver it a message
