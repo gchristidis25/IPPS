@@ -205,19 +205,19 @@ class Server:
         
         If the list reaches its maximum, begin a new cycle
         
-        """
-        self.moved_peers.append(peer_name)
+        return False
 
-        if (len(self.moved_peers)) == self.MAX_PEERS:
-            self.round += 1
-            self.log_important("New Time Cycle")
-            message = self.create_message("PASR")
-            # send the broadcast message
-            broadcast_thread = threading.Thread(target=self.broadcast, args=(message, ))
-            broadcast_thread.start()
-            broadcast_thread.join()
-            # after the broadcast, clear the list of moved peers
-            self.moved_peers.clear()
+    def start_new_round(self, ):
+        """Checks if a new round must start. If it is, it broadcasts a PASR message"""
+        while True:
+            if (len(self.moved_peers)) == self.MAX_PEERS:
+                self.round += 1
+                self.log_important("New Time Cycle")
+                message = self.create_message("PASR")
+                # send the broadcast message
+                self.broadcast(message)
+                # after the broadcast, clear the list of moved peers
+                self.moved_peers.clear()
             
     def broadcast(self, message: Message):
         """Broadcasts a message to all peers"""
