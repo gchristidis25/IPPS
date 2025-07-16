@@ -218,7 +218,7 @@ class Server:
         """Broadcasts a message to all peers"""
         self.log("Sending broadcast")
         for peer_name, address in self.peers_addresses.items():
-            threading.Thread(target=self.connect, args=(peer_name, message, address, )).start()
+            self.connect(peer_name, message, address)
         
     def connect(self, peer_name: str, message: Message, destination: tuple[str, int]):
         """Connects with a specific peer and deliver it a message"""
@@ -226,7 +226,7 @@ class Server:
         client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         client_socket.connect(destination)
         # self.log(f"Opened connection with {peer_name}")
-        threading.Thread(target=self.send, args=(peer_name, client_socket, message, )).start()
+        self.send(peer_name, client_socket, message)
 
     def send(self, peer_name, client_socket: socket.socket, message: Message):
         encoded_message = message.encode()
