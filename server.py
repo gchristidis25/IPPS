@@ -2,6 +2,7 @@ import socket
 import threading
 import log
 import utils
+from threadpool import Threadpool
 from message import Message
 
 class Server:
@@ -21,8 +22,9 @@ class Server:
         SIZE: the area's side size
         area: a rectangle area where peers can move to
         lock: locks the are when a peer changes its pos
+        num_threads (int): the number of working threads in the threadpool
         """
-    def __init__(self, port: int, size: int, max_peers: int, END_ROUND: int):
+    def __init__(self, port: int, size: int, max_peers: int, END_ROUND: int, num_threads: int):
         self.name = "Server"
         self.logger = log.create_logger()
         self.SERVER_ADDRESS = ("127.0.0.1", port)
@@ -34,6 +36,7 @@ class Server:
         self.SIZE: int = size
         self.area: list[list[str]] = [["#" for _ in range(size)] for _ in range(size)]
         self.lock: threading.Lock = threading.Lock()
+        self.threadpool = Threadpool(num_threads)
 
     def get_peer_address(self, peer_name: str) -> str:
         """Returns the peer's address"""
@@ -70,7 +73,7 @@ class Server:
         while True:
             client_socket, client_address = server_socket.accept()
             # self.log(f"Opened connection with {client_address}")
-            threading.Thread(target=self.receive, args=(client_socket, client_address)).start()
+            self.threadpool.add_task(self.receive, args=(client_socket, client_address, ))
 
     def create_message(self, title: str, content=""):
         message = Message(
