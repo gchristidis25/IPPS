@@ -63,7 +63,7 @@ class Server:
         for a new round have been met
         """
         threading.Thread(target=self.serve, args=()).start()
-        threading.Thread(target=self.start_new_round(), args=()).start()
+        threading.Thread(target=self.start_new_round, args=()).start()
 
     def serve(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
