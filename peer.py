@@ -80,9 +80,13 @@ class Peer:
 
     def scan_peers(self):
         """Asks the server which servers are within radio range"""
-        scan_message = self.create_message("SCAN", f"{self.pos}|{self.RADIO_RANGE}")
-        self.log("Scanning for peers")
-        self.connect(self.SERVER_ADDRESS, "Server", scan_message)
+        while True:
+            if self.moved:
+                scan_message = self.create_message("SCAN", f"{self.pos}|{self.RADIO_RANGE}")
+                self.log("Scanning for peers")
+                self.connect(self.SERVER_ADDRESS, "Server", scan_message)
+
+                self.moved = False
         
     def remain_idle(self, seconds: int):
         """Simulates action pauses"""
@@ -121,7 +125,7 @@ class Peer:
                 break
 
             message: Message = Message.decode(data)
-            threading.Thread(target=self.handle_message, args=(message,)).start()        
+            self.handle_message(message)      
 
     def handle_message(self, message: Message):
         """Checks the title of the message and takes the appropriate action
@@ -204,7 +208,7 @@ class Peer:
         peer_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         peer_socket.connect(destination)
         # self.log(f"Open connection with {recipient}")
-        threading.Thread(target=self.send, args=(peer_socket, recipient, message, )).start()
+        self.send(peer_socket, recipient, message)
 
     def send(self, peer_socket: socket.socket, recipient: str, message: Message):
         encoded_message = message.encode()
