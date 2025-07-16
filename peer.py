@@ -17,7 +17,10 @@ class Peer:
         random_directions (list[str]): the subsets of possible directions the peer
         chose to make in a given round
         next_pos (tuple[int, int]): the position the peer chose to move next
-        RADIO_RANGE (int): the WiFi range 
+        RADIO_RANGE (int): the WiFi range
+        moved (bool): flag that indicates if the peer has moved or not
+        peers_in_vicinity (list[str, tuple[int, str]]): the peers and their
+        addresses that are withing radio range
     
     """
     def __init__(self, name: str, pos: tuple[int, int], server_port: int, END_ROUND, server_address, radio_range):
@@ -32,6 +35,7 @@ class Peer:
         self.random_directions: list[str] = []
         self.next_pos: tuple[int, int] = None
         self.RADIO_RANGE: int = radio_range
+        self.moved = False
         self.peers_in_vicinity = []
 
     def get_name(self):
@@ -145,15 +149,26 @@ class Peer:
         if title == "PASR":
             self.round += 1
             self.log_pos()
+
+            next_pos = self.select_move()
+            message = self.create_message("RQMV", f"{self.pos}|{next_pos}")
+            self.connect(destination_address, peer_name, message)
         elif title == "OKMV":
             self.pos = self.next_pos
             self.next_pos = None
+            self.moved = True
         elif title == "DNMV":
-            threading.Thread(target=self.select_move, args=()).start()
+            next_pos = self.select_move()
+            if next_pos:
+                message = self.create_message("RQMV", f"{self.pos}|{next_pos}")
+            else:
+                message = self.create_message("FNMV")
+                self.moved = True
+            self.connect(destination_address, peer_name, message)
         elif title == "PWIR":
             self.peers_in_vicinity = content
             peers = list(map(lambda t: t[0], self.peers_in_vicinity))
-            self.log(f"Found: {peers} and thats it")
+            self.log(f"Found: {peers} in vicinity")
         
     def select_move(self):
         """Selects a random combination of moves each round and tries to execute
