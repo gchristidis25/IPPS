@@ -60,7 +60,7 @@ class Peer:
         if self.round < self.END_ROUND:
             self.logger.info("Position: (%s, %s)", self.pos[0], self.pos[1], extra={"peer_name": self.name, "round": self.round})
 
-    def start(self):
+    def start(self, enable_wifi=True):
         """Enables the basic behavior of the peer
         
         The peer serves throughout the simulation
@@ -70,21 +70,13 @@ class Peer:
         vicinity
 
         """
-        threading.Thread(target=self.serve, args=()).start()
+        serve_thread = threading.Thread(target=self.serve, args=())
+        serve_thread.start()
 
-        current_round: int = self.round
-        while True:
-            if current_round < self.round:
-                # self.remain_idle(2)
-                move_thread: threading.Thread = threading.Thread(target=self.select_move, args=())
-                scan_thread = threading.Thread(target=self.scan_peers, args=())
-                move_thread.start()
-                move_thread.join()
-                # self.remain_idle(3)
-                scan_thread.start()
-                scan_thread.join()
+        if enable_wifi:
+            scan_thread = threading.Thread(target=self.scan_peers, args=())
+            scan_thread.start()
 
-                current_round = self.round
 
     def scan_peers(self):
         """Asks the server which servers are within radio range"""
