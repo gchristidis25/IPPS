@@ -52,7 +52,7 @@ def start_simulation(area_size: int, max_peers: int, max_rounds: int, radio_rang
         
     """
     server = Server(60000, area_size, max_peers, max_rounds)
-    threading.Thread(target=server.serve, args=()).start()
+    threading.Thread(target=server.start, args=()).start()
     peers = initialize_peers(MAX_PEERS, MAX_CYCLES, server.SERVER_ADDRESS, radio_range)
     server.bootstrap(peers)
 

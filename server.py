@@ -53,6 +53,15 @@ class Server:
         if self.round < self.END_ROUND:
             self.logger.info(f"\x1b[31m{message}\x1b[0m", extra={"peer_name": self.name, "round": self.round})
 
+    def start(self):
+        """Enables the behavior of the server.
+        
+        It constanlty listens for new messages and checks if the prerequisites
+        for a new round have been met
+        """
+        threading.Thread(target=self.serve, args=()).start()
+        threading.Thread(target=self.start_new_round(), args=()).start()
+
     def serve(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind(self.SERVER_ADDRESS)
