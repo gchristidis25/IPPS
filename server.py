@@ -83,7 +83,7 @@ class Server:
                 break
 
             message = Message.decode(data)
-            threading.Thread(target=self.handle_message, args=(message, )).start()
+            self.handle_message(message)
             
     def handle_message(self, message: Message):
         """Checks the title of the message and takes the appropriate action
@@ -107,9 +107,16 @@ class Server:
             current_pos_str, new_pos_str = content.split("|")
             current_pos = utils.string_to_tuple(current_pos_str)
             new_pos = utils.string_to_tuple(new_pos_str)
-            threading.Thread(target=self.change_pos, args=(peer_name, current_pos, new_pos, destination, )).start()
+            valid_move = self.change_pos(peer_name, current_pos, new_pos)
+            if valid_move:
+                accept_move_message = self.create_message("OKMV")
+                self.connect(peer_name, accept_move_message, destination)
+                self.moved_peers.append(peer_name)
+            else:
+                deny_move_message = self.create_message("DNMV")
+                self.connect(peer_name, deny_move_message, destination)
         elif title == "FNMV":
-            self.store(peer_name)
+            self.moved_peers.append(peer_name)
         elif title == "SCAN":
             peer_pos_str, radio_range_str = content.split("|")
             peer_pos = utils.string_to_tuple(peer_pos_str)
@@ -117,12 +124,7 @@ class Server:
 
             peers_in_vicinity = self.find_peers(peer_pos, radio_range)
             peers_in_vicinity_message = self.create_message("PWIR", peers_in_vicinity)
-            threading.Thread(target=self.connect, args=(
-                peer_name,
-                peers_in_vicinity_message,
-                destination,
-                )
-            ).start()
+            self.connect(peer_name, peers_in_vicinity_message, destination)
     
     def find_peers(self, peer_pos: tuple[str, int], radio_range: int):
         """Finds the peers that are withing range of the requesting peer"""
