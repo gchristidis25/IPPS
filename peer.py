@@ -19,7 +19,6 @@ class Peer:
         chose to make in a given round
         next_pos (tuple[int, int]): the position the peer chose to move next
         RADIO_RANGE (int): the WiFi range
-        moved (bool): flag that indicates if the peer has moved or not
         peers_in_vicinity (list[str, tuple[int, str]]): the peers and their
         addresses that are withing radio range
         num_threads (int): the number of working threads in the threadpool
@@ -46,7 +45,6 @@ class Peer:
         self.random_directions: list[str] = []
         self.next_pos: tuple[int, int] = None
         self.RADIO_RANGE: int = radio_range
-        self.moved = False
         self.peers_in_vicinity = []
         self.threadpool = Threadpool(num_threads)
 
@@ -72,33 +70,16 @@ class Peer:
         if self.round < self.END_ROUND:
             self.logger.info("Position: (%s, %s)", self.pos[0], self.pos[1], extra={"peer_name": self.name, "round": self.round})
 
-    def start(self, enable_wifi=True):
-        """Enables the basic behavior of the peer
-        
-        The peer serves throughout the simulation
-
-        At the start of a new round the peer moves to a random location or stays
-        at the same if there are no valid moves. It then scans for peers in its
-        vicinity
-
-        """
+    def start(self):
+        """Enables the serving module of the peer"""
         serve_thread = threading.Thread(target=self.serve, args=())
         serve_thread.start()
 
-        if enable_wifi:
-            scan_thread = threading.Thread(target=self.scan_peers, args=())
-            scan_thread.start()
-
-
     def scan_peers(self):
-        """Asks the server which servers are within radio range"""
-        while True:
-            if self.moved:
-                scan_message = self.create_message("SCAN", f"{self.pos}|{self.RADIO_RANGE}")
-                self.log("Scanning for peers")
-                self.connect(self.SERVER_ADDRESS, "Server", scan_message)
-
-                self.moved = False
+        """Queries the server which servers are within radio range"""
+        scan_message = self.create_message("SCAN", f"{self.pos}|{self.RADIO_RANGE}")
+        self.log("Scanning for peers")
+        self.connect(self.SERVER_ADDRESS, "Server", scan_message)
         
     def remain_idle(self, seconds: int):
         """Simulates action pauses"""
@@ -126,7 +107,6 @@ class Peer:
             peer_socket, peer_address = serve_socket.accept()
             # self.log(f"Opened connection with {peer_address}")
             self.threadpool.add_task(self.receive, args=(peer_socket, peer_address, ))
-
 
     def receive(self, peer_socket, peer_address):
         while True:
@@ -164,14 +144,14 @@ class Peer:
         elif title == "OKMV":
             self.pos = self.next_pos
             self.next_pos = None
-            self.moved = True
+            self.scan_peers()
         elif title == "DNMV":
             next_pos = self.select_move()
             if next_pos:
                 message = self.create_message("RQMV", f"{self.pos}|{next_pos}")
             else:
                 message = self.create_message("FNMV")
-                self.moved = True
+                self.scan_peers()
             self.connect(destination_address, peer_name, message)
         elif title == "PWIR":
             self.peers_in_vicinity = content

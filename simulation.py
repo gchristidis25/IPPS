@@ -59,7 +59,7 @@ def start_simulation(area_size: int, max_peers: int, max_rounds: int, radio_rang
 
 if __name__ == "__main__":
     AREA_SIZE = 5
-    MAX_PEERS = 5
+    MAX_PEERS = 3
     MAX_CYCLES = 20
     RADIO_RANGE = 2
     PEER_THREADS = 2
