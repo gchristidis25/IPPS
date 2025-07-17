@@ -22,9 +22,9 @@ class Server:
         SIZE: the area's side size
         area: a rectangle area where peers can move to
         lock: locks the are when a peer changes its pos
-        num_threads (int): the number of working threads in the threadpool
+        threadpool (Threadpool): the simulation's threadpool
         """
-    def __init__(self, port: int, size: int, max_peers: int, END_ROUND: int, num_threads: int):
+    def __init__(self, port: int, size: int, max_peers: int, END_ROUND: int, threadpool: Threadpool):
         self.name = "Server"
         self.logger = log.create_logger()
         self.SERVER_ADDRESS = ("127.0.0.1", port)
@@ -36,7 +36,7 @@ class Server:
         self.SIZE: int = size
         self.area: list[list[str]] = [["#" for _ in range(size)] for _ in range(size)]
         self.lock: threading.Lock = threading.Lock()
-        self.threadpool = Threadpool(num_threads)
+        self.threadpool = threadpool
 
     def get_peer_address(self, peer_name: str) -> str:
         """Returns the peer's address"""

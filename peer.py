@@ -21,7 +21,7 @@ class Peer:
         RADIO_RANGE (int): the WiFi range
         peers_in_vicinity (list[str, tuple[int, str]]): the peers and their
         addresses that are withing radio range
-        num_threads (int): the number of working threads in the threadpool
+        threadpool (Threadpool): the simulation's threadpool
     
     """
     def __init__(
@@ -32,7 +32,7 @@ class Peer:
             END_ROUND: int,
             server_address:tuple[str, int],
             radio_range: int,
-            num_threads: int
+            threadpool: Threadpool
             ):
         self.logger = log.create_logger()
         self.name: str = name
@@ -46,7 +46,7 @@ class Peer:
         self.next_pos: tuple[int, int] = None
         self.RADIO_RANGE: int = radio_range
         self.peers_in_vicinity = []
-        self.threadpool = Threadpool(num_threads)
+        self.threadpool = threadpool
 
     def get_name(self):
         """Returns the peer's name attribute"""

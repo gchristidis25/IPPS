@@ -1,6 +1,7 @@
 from server import Server
 from peer import Peer
 from pathlib import Path
+from threadpool import Threadpool
 import threading
 
 def get_names() -> "generator":
@@ -42,7 +43,7 @@ def initialize_peers(max_peers: int, max_rounds: int, server_address: tuple[str,
     return peers
 
 
-def start_simulation(area_size: int, max_peers: int, max_rounds: int, radio_range: int, peer_threads: int, server_threads: int):
+def start_simulation(area_size: int, max_peers: int, max_rounds: int, radio_range: int, num_threads: int):
     """Initiates the server and broadcasts the start of the simulation to all peers
     
     Args:
@@ -52,16 +53,16 @@ def start_simulation(area_size: int, max_peers: int, max_rounds: int, radio_rang
         radio_range (int): WiFi range
         
     """
-    server: Server = Server(60000, area_size, max_peers, max_rounds, server_threads)
+    threadpool = Threadpool(num_threads)
+    server: Server = Server(60000, area_size, max_peers, max_rounds, threadpool)
     server.start()
-    peers = initialize_peers(MAX_PEERS, MAX_CYCLES, server.SERVER_ADDRESS, radio_range, peer_threads)
+    peers = initialize_peers(MAX_PEERS, MAX_CYCLES, server.SERVER_ADDRESS, radio_range, threadpool)
     server.bootstrap(peers)
 
 if __name__ == "__main__":
     AREA_SIZE = 5
-    MAX_PEERS = 3
+    MAX_PEERS = 5
     MAX_CYCLES = 20
     RADIO_RANGE = 2
-    PEER_THREADS = 2
-    SERVER_THREADS = 5
-    start_simulation(AREA_SIZE, MAX_PEERS, MAX_CYCLES, RADIO_RANGE, PEER_THREADS, SERVER_THREADS)
+    THREADPOOL_THREADS = MAX_PEERS
+    start_simulation(AREA_SIZE, MAX_PEERS, MAX_CYCLES, RADIO_RANGE, THREADPOOL_THREADS)
