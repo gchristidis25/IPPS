@@ -57,13 +57,8 @@ class Server:
             self.logger.info(f"\x1b[31m{message}\x1b[0m", extra={"peer_name": self.name, "round": self.round})
 
     def start(self):
-        """Enables the behavior of the server.
-        
-        It constanlty listens for new messages and checks if the prerequisites
-        for a new round have been met
-        """
+        """Enables the serving module of the server"""
         threading.Thread(target=self.serve, args=()).start()
-        threading.Thread(target=self.start_new_round, args=()).start()
 
     def serve(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -124,11 +119,15 @@ class Server:
                 accept_move_message = self.create_message("OKMV")
                 self.connect(peer_name, accept_move_message, destination)
                 self.moved_peers.append(peer_name)
+                if len(self.moved_peers) == self.MAX_PEERS:
+                    self.start_new_round()
             else:
                 deny_move_message = self.create_message("DNMV")
                 self.connect(peer_name, deny_move_message, destination)
         elif title == "FNMV":
             self.moved_peers.append(peer_name)
+            if len(self.moved_peers) == self.MAX_PEERS:
+                self.start_new_round()
         elif title == "SCAN":
             peer_pos_str, radio_range_str = content.split("|")
             peer_pos = utils.string_to_tuple(peer_pos_str)
@@ -205,18 +204,16 @@ class Server:
         
         return False
 
-    def start_new_round(self, ):
-        """Checks if a new round must start. If it is, it broadcasts a PASR message"""
-        while True:
-            if (len(self.moved_peers)) == self.MAX_PEERS:
-                self.round += 1
-                self.log_important("New Time Cycle")
-                message = self.create_message("PASR")
-                # send the broadcast message
-                self.broadcast(message)
-                # after the broadcast, clear the list of moved peers
-                self.moved_peers.clear()
-            
+    def start_new_round(self):
+        """Starts a new round and broadcasts a PASR message to all peers"""
+        self.round += 1
+        self.log_important("New Time Cycle")
+        message = self.create_message("PASR")
+        # send the broadcast message
+        self.broadcast(message)
+        # after the broadcast, clear the list of moved peers
+        self.moved_peers.clear()
+
     def broadcast(self, message: Message):
         """Broadcasts a message to all peers"""
         self.log("Sending broadcast")
