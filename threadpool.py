@@ -5,13 +5,13 @@ class Threadpool:
     """Represents a group of working threads
     
     Attributes:
+        num_threads (int)
         task_queue (Queue): a queue where the tasks to be executedare gathered
-        threads: the list of working threads
         active (bool): a flag that terminates the threads if it is False
         """
-    def __init__(self, num_threads):
+    def __init__(self, num_threads: int):
+        self.num_threads: int = num_threads
         self.task_queue: Queue = Queue()
-        self.active: bool = True
         for _ in range(num_threads):
             thread = threading.Thread(target=self.wait, args=())
             thread.start()
@@ -21,14 +21,12 @@ class Threadpool:
         
         When a task is inserted, a thread is assigned to execute it
         """
-        while True:
-            if not(self.active):
+        while True: 
+            current_task = self.task_queue.get(block=True)
+            
+            if current_task == None:
                 break
 
-            if self.task_queue.empty():
-                continue
-        
-            current_task = self.task_queue.get()
             [func, args, kwargs] = current_task
             try:
                 func(*args, **kwargs)
@@ -47,10 +45,8 @@ class Threadpool:
 
     def terminate(self):
         """Waits for the task queue to empty and then terminates the poolthread"""
-        while True:
-            if self.task_queue.empty():
-                break
-        self.active = False
+        for _ in range(self.num_threads):
+            self.task_queue.put(None)
 
 if __name__ == "__main__":
     threadpool = Threadpool(4)
