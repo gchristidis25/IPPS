@@ -23,6 +23,8 @@ class Server:
         area: a rectangle area where peers can move to
         lock: locks the are when a peer changes its pos
         threadpool (Threadpool): the simulation's threadpool
+        serving_module_active (bool): a flag that controls the serving operation
+        of the server
         """
     def __init__(self, port: int, size: int, max_peers: int, END_ROUND: int, threadpool: Threadpool):
         self.name = "Server"
@@ -37,6 +39,11 @@ class Server:
         self.area: list[list[str]] = [["#" for _ in range(size)] for _ in range(size)]
         self.lock: threading.Lock = threading.Lock()
         self.threadpool = threadpool
+        self.serving_module_active: bool = True
+
+    def get_round(self):
+        """Return the current round the server is in"""
+        return self.round
 
     def get_peer_address(self, peer_name: str) -> str:
         """Returns the peer's address"""
@@ -64,11 +71,17 @@ class Server:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind(self.SERVER_ADDRESS)
         server_socket.listen(5)
+        server_socket.settimeout(2)
         
-        while True:
-            client_socket, client_address = server_socket.accept()
-            # self.log(f"Opened connection with {client_address}")
-            self.threadpool.add_task(self.receive, args=(client_socket, client_address, ))
+        while self.serving_module_active:
+            try:
+                client_socket, client_address = server_socket.accept()
+                # self.log(f"Opened connection with {client_address}")
+                self.threadpool.add_task(self.receive, args=(client_socket, client_address, ))
+            except socket.timeout:
+                pass
+        server_socket.close()
+        self.log_important("Serving module terminated")
 
     def create_message(self, title: str, content=""):
         message = Message(
@@ -82,16 +95,19 @@ class Server:
         return message
 
     def receive(self, client_socket: socket.socket, client_address: str):
-        while True:
-            data = client_socket.recv(1024)
-            if not(data):
-                client_socket.close()
-                # self.log(f"Closed address with {client_address}")
-                break
+        client_socket.settimeout(2)
+        while self.serving_module_active:
+            try:
+                data = client_socket.recv(1024)
+                if not(data):
+                    client_socket.close()
+                    # self.log(f"Closed address with {client_address}")
+                    break
+                message = Message.decode(data)
+                self.handle_message(message)
+            except socket.timeout:
+                pass
 
-            message = Message.decode(data)
-            self.handle_message(message)
-            
     def handle_message(self, message: Message):
         """Checks the title of the message and takes the appropriate action
         
@@ -205,14 +221,24 @@ class Server:
         return False
 
     def start_new_round(self):
-        """Starts a new round and broadcasts a PASR message to all peers"""
+        """Starts a new round and broadcasts a PASR message to all peers. If
+        it is the last round, it broadcasts a TERM message instead"""
         self.round += 1
-        self.log_important("New Time Cycle")
-        message = self.create_message("PASR")
-        # send the broadcast message
-        self.broadcast(message)
-        # after the broadcast, clear the list of moved peers
-        self.moved_peers.clear()
+        if self.round < self.END_ROUND:
+            self.log_important("New Time Cycle")
+            message = self.create_message("PASR")
+            # send the broadcast message
+            self.broadcast(message)
+            # after the broadcast, clear the list of moved peers
+            self.moved_peers.clear()
+        else:
+            self.log_important("Terminating")
+            # wait for scan attempts to terminate
+            import time
+            time.sleep(2)
+            message = self.create_message("TERM")
+            self.broadcast(message)
+            self.serving_module_active = False
 
     def broadcast(self, message: Message):
         """Broadcasts a message to all peers"""

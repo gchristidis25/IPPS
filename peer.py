@@ -22,6 +22,8 @@ class Peer:
         peers_in_vicinity (list[str, tuple[int, str]]): the peers and their
         addresses that are withing radio range
         threadpool (Threadpool): the simulation's threadpool
+        serving_module_active (bool): a flag that controls the serving operation
+        of the peer
     
     """
     def __init__(
@@ -47,6 +49,7 @@ class Peer:
         self.RADIO_RANGE: int = radio_range
         self.peers_in_vicinity = []
         self.threadpool = threadpool
+        self.serving_module_active: bool = True
 
     def get_name(self):
         """Returns the peer's name attribute"""
@@ -102,23 +105,33 @@ class Peer:
         serve_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         serve_socket.bind(self.SOURCE_ADDRESS)
         serve_socket.listen(3)
+        serve_socket.settimeout(2)
         
-        while True:
-            peer_socket, peer_address = serve_socket.accept()
-            # self.log(f"Opened connection with {peer_address}")
-            self.threadpool.add_task(self.receive, args=(peer_socket, peer_address, ))
+        while self.serving_module_active:
+            try:
+                peer_socket, peer_address = serve_socket.accept()
+                # self.log(f"Opened connection with {peer_address}")
+                self.threadpool.add_task(self.receive, args=(peer_socket, peer_address, ))
+            except socket.timeout:
+                pass
 
-    def receive(self, peer_socket, peer_address):
-        while True:
-            data = peer_socket.recv(1024)
-            if not(data):
-                peer_socket.close()
-                # self.log(f"Closed connection with {peer_address}")
-                break
+        serve_socket.close()
+        self.log("Terminating serving module")
 
-            message: Message = Message.decode(data)
-            self.handle_message(message)      
-
+    def receive(self, peer_socket:socket.socket, peer_address):
+        peer_socket.settimeout(2)
+        while self.serving_module_active:
+            try:
+                data = peer_socket.recv(1024)
+                if not(data):
+                    peer_socket.close()
+                    # self.log(f"Closed connection with {peer_address}")
+                    break
+                message: Message = Message.decode(data)
+                self.handle_message(message) 
+            except socket.timeout:
+                pass
+     
     def handle_message(self, message: Message):
         """Checks the title of the message and takes the appropriate action
         
@@ -127,6 +140,7 @@ class Peer:
         - DNMV (DeNy MoVe): The current move is illegal. Proceed to the next available
         move or declare to server that you will take no other move this round
         - PWIR (Peers WIthin Range): Shows which peers are withing radio range
+        - TERM (TERMinate): Terminate the peer
         """
         title = message.get_title()
         peer_name = message.get_name()
@@ -157,6 +171,9 @@ class Peer:
             self.peers_in_vicinity = content
             peers = list(map(lambda t: t[0], self.peers_in_vicinity))
             self.log(f"Found: {peers} in vicinity")
+        elif title == "TERM":
+            self.serving_module_active = False
+            self.log("Terminating")
         
     def select_move(self):
         """Selects a random combination of moves each round and tries to execute
