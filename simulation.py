@@ -70,9 +70,19 @@ def start_simulation(area_size: int, max_peers: int, max_round: int, radio_range
     print("End")
 
 if __name__ == "__main__":
-    AREA_SIZE = 5
-    MAX_PEERS = 3
-    MAX_ROUND = 5
+    AREA_SIZE = 10
+    MAX_PEERS = 10
+    MAX_ROUND = 10
     RADIO_RANGE = 2
     THREADPOOL_THREADS = MAX_PEERS
+    # import cProfile
+    # import pstats
+    # profiler = cProfile.Profile()
+    # profiler.enable()
+
     start_simulation(AREA_SIZE, MAX_PEERS, MAX_ROUND, RADIO_RANGE, THREADPOOL_THREADS)
+
+    # profiler.disable()
+    # stats = pstats.Stats(profiler)
+    # stats.sort_stats("cumulative")
+    # stats.print_stats(10)

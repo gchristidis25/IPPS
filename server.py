@@ -18,13 +18,14 @@ class Server:
         moved_peers (list[str]): tracks which peers have taken their move action
         round (int): the round the server is in
         END_ROUND (int): the round after which logging is disabled
-        MAX_PEERS: the number of peers in the simulation
-        SIZE: the area's side size
-        area: a rectangle area where peers can move to
-        lock: locks the are when a peer changes its pos
+        MAX_PEERS (int): the number of peers in the simulation
+        SIZE (int): the area's side size
+        area (list[list[int]]): a rectangle area where peers can move to
+        lock (Lock): locks the area when a peer changes its pos
         threadpool (Threadpool): the simulation's threadpool
         serving_module_active (bool): a flag that controls the serving operation
         of the server
+        append_lock (Lock): locks the adding of a peer's name to the moved_peers list
         """
     def __init__(self, port: int, size: int, max_peers: int, END_ROUND: int, threadpool: Threadpool):
         self.name = "Server"
@@ -40,6 +41,7 @@ class Server:
         self.lock: threading.Lock = threading.Lock()
         self.threadpool = threadpool
         self.serving_module_active: bool = True
+        self.append_lock: threading.Lock = threading.Lock()
 
     def get_round(self):
         """Return the current round the server is in"""
@@ -138,9 +140,10 @@ class Server:
                 deny_move_message = self.create_message("DNMV")
                 self.connect(peer_name, deny_move_message, destination)
         elif title == "FNMV":
-            self.moved_peers.append(peer_name)
-            if len(self.moved_peers) == self.MAX_PEERS:
-                self.start_new_round()
+            with self.append_lock:
+                self.moved_peers.append(peer_name)
+                if len(self.moved_peers) == self.MAX_PEERS:
+                    self.threadpool.add_task(self.start_new_round)
         elif title == "SCAN":
             peer_pos_str, radio_range_str = content.split("|")
             peer_pos = utils.string_to_tuple(peer_pos_str)
@@ -220,14 +223,16 @@ class Server:
     def start_new_round(self):
         """Starts a new round and broadcasts a PASR message to all peers. If
         it is the last round, it broadcasts a TERM message instead"""
+        print(f"From round {self.round} to {self.round + 1}")
+        
         self.round += 1
         if self.round < self.END_ROUND:
             self.log_important("New Time Cycle")
+            # after the broadcast, clear the list of moved peers
+            self.moved_peers.clear()
             message = self.create_message("PASR")
             # send the broadcast message
             self.broadcast(message)
-            # after the broadcast, clear the list of moved peers
-            self.moved_peers.clear()
         else:
             self.log_important("Terminating")
             # wait for scan attempts to terminate
