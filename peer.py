@@ -139,6 +139,7 @@ class Peer:
         - OKMV (OK MoVe): The current move is legal. Proceed in changing the pos
         - DNMV (DeNy MoVe): The current move is illegal. Proceed to the next available
         move or declare to server that you will take no other move this round
+        - FNMV (FiNish MoVe): Send after moving or having exhausted all movement options
         - PWIR (Peers WIthin Range): Shows which peers are withing radio range
         - TERM (TERMinate): Terminate the peer
         """
@@ -159,6 +160,8 @@ class Peer:
             self.pos = self.next_pos
             self.next_pos = None
             self.scan_peers()
+            message = self.create_message("FNMV")
+            self.connect(destination_address, peer_name, message)
         elif title == "DNMV":
             next_pos = self.select_move()
             if next_pos:

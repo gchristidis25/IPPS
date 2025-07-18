@@ -134,9 +134,6 @@ class Server:
             if valid_move:
                 accept_move_message = self.create_message("OKMV")
                 self.connect(peer_name, accept_move_message, destination)
-                self.moved_peers.append(peer_name)
-                if len(self.moved_peers) == self.MAX_PEERS:
-                    self.start_new_round()
             else:
                 deny_move_message = self.create_message("DNMV")
                 self.connect(peer_name, deny_move_message, destination)
