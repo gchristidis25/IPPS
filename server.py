@@ -176,16 +176,14 @@ class Server:
             if up in range(self.SIZE):
                 y_cardinals.append(up)
 
-        for x in x_cardinals:
-            for y in y_cardinals:
-                if self.area[x][y] != "#" and not (x == peer_pos[0] and y == peer_pos[1]):
-                    with self.lock:
+        with self.lock:
+            for x in x_cardinals:
+                for y in y_cardinals:
+                    if self.area[x][y] != "#" and not (x == peer_pos[0] and y == peer_pos[1]):
                         peer_name = self.area[x][y]
-                    
-                    self.log(f"Found {peer_name} at {x},{y}")
-
-                    peer_address = self.peers_addresses[peer_name]
-                    peers_in_vicinity.append((peer_name, peer_address))
+                        self.log(f"Found {peer_name} at {x},{y}")
+                        peer_address = self.peers_addresses[peer_name]
+                        peers_in_vicinity.append((peer_name, peer_address))
 
         return peers_in_vicinity
 
