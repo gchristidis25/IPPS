@@ -56,14 +56,12 @@ class Server:
         self.peers_addresses[peer_name] = peer_address
 
     def log(self, message):
-        """Logs a server's message up until END_ROUND"""
-        if self.round < self.END_ROUND:
-            self.logger.info(message, extra={"peer_name": self.name, "round": self.round})
+        """Logs a server's message"""
+        self.logger.info(message, extra={"peer_name": self.name, "round": self.round})
 
     def log_important(self, message):
-        """Logs a server's important message up until END_ROUND"""
-        if self.round < self.END_ROUND:
-            self.logger.info(f"\x1b[31m{message}\x1b[0m", extra={"peer_name": self.name, "round": self.round})
+        """Logs a server's important message"""
+        self.logger.info(f"\x1b[31m{message}\x1b[0m", extra={"peer_name": self.name, "round": self.round})
 
     def start(self):
         """Enables the serving module of the server"""

@@ -64,14 +64,12 @@ class Peer:
         return self.SOURCE_ADDRESS
 
     def log(self, message: str):
-        """Logs a peer's message up until END_ROUND"""
-        if self.round < self.END_ROUND:
-            self.logger.info(message, extra={"peer_name": self.name, "round": self.round})
+        """Logs a peer's message"""
+        self.logger.info(message, extra={"peer_name": self.name, "round": self.round})
 
     def log_pos(self):
-        """Logs the peer's position up until END_ROUND"""
-        if self.round < self.END_ROUND:
-            self.logger.info("Position: (%s, %s)", self.pos[0], self.pos[1], extra={"peer_name": self.name, "round": self.round})
+        """Logs the peer's position"""
+        self.logger.info("Position: (%s, %s)", self.pos[0], self.pos[1], extra={"peer_name": self.name, "round": self.round})
 
     def start(self):
         """Enables the serving module of the peer"""
@@ -175,6 +173,7 @@ class Peer:
             peers = list(map(lambda t: t[0], self.peers_in_vicinity))
             self.log(f"Found: {peers} in vicinity")
         elif title == "TERM":
+            self.round += 1
             self.serving_module_active = False
             self.log("Terminating")
         
